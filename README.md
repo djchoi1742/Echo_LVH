@@ -1,2 +1,2 @@
 # Echo_LVH
-Differential diagnosis for LVH on echocardiogram
+Differential diagnosis of left ventricular hypertrophy on echocardiography using CNN-LSTM algorithm
