@@ -32,7 +32,6 @@ main_config.add_argument('--image_width', type=int, dest='image_width', default=
 main_config.add_argument('--image_depth', type=int, dest='image_depth', default=8)
 main_config.add_argument('--image_channel', type=int, dest='image_channel', default=1)
 main_config.add_argument('--trans', type=lambda x: x.title() in str(True), dest='trans', default=False)
-# main_config.add_argument('--label_num', type=int, dest='label_num', default=1)
 main_config.add_argument('--max_keep', type=int, dest='max_keep', default=3)  # only use training
 main_config.add_argument('--num_weight', type=int, dest='num_weight', default=1)  # only use validation
 main_config.add_argument('--train', type=lambda x: x.title() in str(True), dest='train', default=False)
@@ -43,7 +42,6 @@ main_config.add_argument('--batch_size', type=int, dest='batch_size', default=8)
 main_config.add_argument('--epoch', type=int, dest='epoch', default=50)
 main_config.add_argument('--alpha', type=float, dest='alpha', default=0.05)
 main_config.add_argument('--gamma', type=float, dest='gamma', default=2.)
-# main_config.add_argument('--use_se', type=lambda x: x.title() in str(True), dest='use_se', default=False)
 main_config.add_argument('--bin_label', type=lambda x: x.title() in str(True), dest='bin_label', default=False)
 main_config.add_argument('--is_png', type=lambda x: x.title() in str(True), dest='is_png', default=False)
 
@@ -289,47 +287,6 @@ def training():
         auc_csv.to_csv(os.path.join(result_path, result_name))
 
 
-def gen_grad_cam(cam_layer, loss, tape):
-    grads = tape.gradient(loss, cam_layer)
-    weights = tf.reduce_mean(grads, axis=(1, 2))
-    cam = np.zeros(cam_layer.shape[0:4], dtype=np.float32)
-
-    h, w, c = config.image_height, config.image_width, config.image_channel
-    batch_size = cam_layer.shape[0]
-
-    heatmaps = np.zeros((batch_size, h, w, c), dtype=np.float32)
-    for batch in range(batch_size):  # batch size
-        for index, w in enumerate(weights[batch]):  # each weights of batch
-            cam[batch, :, :, :] += w * cam_layer[batch, :, :, :]
-        cam_resize = skimage.transform.resize(cam[batch, :, :, :], (h, w, c))
-        # cam_resize = np.maximum(cam_resize, 0)  # ReLU
-        heatmaps[batch, :, :, :] = (cam_resize - cam_resize.min()) / (cam_resize.max() - cam_resize.min())
-
-    heatmaps = np.expand_dims(heatmaps, axis=-1)
-
-    return heatmaps
-
-
-def gen_cam(cam_layer, fc_layer, loss, tape):
-    grads_cam, grads_fc = tape.gradient(loss, [cam_layer, fc_layer])
-    weights = tf.reduce_mean(grads_cam, axis=(2, 3))
-
-    cam = np.zeros(cam_layer.shape[0:5], dtype=np.float32)
-    h, w, c = config.image_height, config.image_width, grads_fc.shape[-1]
-    heatmaps = np.zeros([cam_layer.shape[0], cam_layer.shape[1], h, w, 3])
-
-    for batch in range(cam_layer.shape[0]):
-        for t in range(img_z):
-            for lbl in range(infer.label_num):
-
-                cam[batch, t, :, :, :] += weights[batch, t, :] * cam_layer[batch, t, :, :, :]  # * grads_fc[batch, lbl]
-                cam_resize = skimage.transform.resize(cam[batch, t, :, :, lbl], (h, w), preserve_range=True)
-                # cam_resize = np.maximum(0, cam_resize)
-                heatmaps[batch, t, :, :, lbl] = cam_resize
-
-    return heatmaps
-
-
 def gen_cam_lstm_time(cam_layer, fc_layer, loss, tape):
     grads_cam, grads_fc = tape.gradient(loss, [cam_layer, fc_layer])
     cam = np.zeros([cam_layer.shape[0], img_z, img_h, img_w, infer.label_num])
@@ -348,42 +305,6 @@ def gen_cam_lstm_time(cam_layer, fc_layer, loss, tape):
     return cam
 
 
-def gen_cam_lstm(cam_layer, fc_layer, loss, tape):
-    grads_cam, grads_fc = tape.gradient(loss, [cam_layer, fc_layer])
-    # cam = np.zeros([cam_layer.shape[0], img_h, img_w, infer.label_num])
-
-    cam = np.zeros([cam_layer.shape[0], img_h, img_w, infer.label_num])
-
-    for batch in range(cam_layer.shape[0]):
-        for lbl in range(grads_fc.shape[-1]):
-            cam_k = np.zeros(cam_layer.shape[1:3], dtype=np.float32)
-            for k in range(cam_layer.shape[-1]):
-                cam_k += cam_layer[batch, :, :, k] * infer.model.weights[-2][k, lbl]
-
-            cam_k = (cam_k - np.mean(cam_k)) / np.std(cam_k)
-            cam_resize = skimage.transform.resize(cam_k, (img_h, img_w), preserve_range=True)
-            cam_resize = np.maximum(cam_resize, 0)
-            cam[batch, :, :, lbl] = cam_resize
-        # cam_batch = cam[batch, :, :, :]
-        # cam[batch, :, :, :] = (cam_batch - np.mean(cam_batch)) / np.std(cam_batch)
-
-    return cam
-
-
-def gen_cam_lstm_lse(cam_layer, fc_layer, loss, tape):
-    h, w, c = config.image_height, config.image_width, infer.label_num
-    cam = np.zeros([cam_layer.shape[0], h, w, 3])
-
-    for batch in range(cam_layer.shape[0]):
-        for lbl in range(infer.label_num):
-            cam_lbl = cam_layer[batch, :, :, lbl]
-            cam_resize = skimage.transform.resize(cam_lbl, (h, w), preserve_range=True)
-            cam_resize = np.maximum(cam_resize, 0)
-            cam[batch, :, :, lbl] = cam_resize
-
-    return cam
-
-
 def validation():
     png_path = os.path.join(plot_path, config.val_name)
     if not os.path.exists(png_path): os.makedirs(png_path)
@@ -397,7 +318,6 @@ def validation():
     all_ckpt_paths = list(weight_auc_csv['WEIGHT_PATH'][0:int(config.num_weight)])
 
     imgs = np.zeros([val_length, infer.img_z, infer.img_h, infer.img_w, infer.img_c])
-    # lbls = np.zeros([val_length, infer.label_num], dtype=np.int32)
     probs = np.zeros([len(all_ckpt_paths), val_length, infer.label_num])
     names = []
     lbls = []
@@ -461,13 +381,10 @@ def validation():
                 show_cam_lstm_time(cams, val_probs, img, lbl, name, png_path)
 
             if ckpt_idx == 0:
-                # imgs[step * config.batch_size:step * config.batch_size + len(lbl)] = img.numpy()
-                # lbls[step * config.batch_size:step * config.batch_size + len(lbl)] = lbl.numpy()
                 names.extend(name.numpy().astype('str'))
 
         ckpt_idx += 1
 
-    # val_gaps = np.array(val_gap)
     bots = np.mean(bots, axis=0)
 
     np.save(bot_save_path, {'x': bots, 'y': np.array(lbls), 'name': np.array(names)})
@@ -501,7 +418,6 @@ def show_cam_lstm_time(cams, probs, images, labels, names, png_path, num_rows=1,
 
             label = labels[batch]
             ax[0].imshow(show_image, cmap='bone')
-            # ax[0].set_title('_'.join([ori_title, str(label)]), fontsize=7, color='green')
 
             lbl_name = ['Hypertensive', 'HCM', 'Amyloidosis']
 
@@ -515,41 +431,6 @@ def show_cam_lstm_time(cams, probs, images, labels, names, png_path, num_rows=1,
                 ax[lbl + 1].imshow(show_image, cmap='bone')
                 ax[lbl + 1].imshow(np.squeeze(show_cam), cmap=plt.cm.jet, alpha=0.5, interpolation='nearest')
                 ax[lbl + 1].set_title(cam_title, fontsize=7, color=cam_color)
-
-                # xlsx_name = os.path.join(plot_path, config.val_name, '_'.join([ori_title, '%d' % lbl]) + '.xlsx')
-                # pd.DataFrame(np.squeeze(show_cam)).to_excel(xlsx_name, index=False)
-
-            plt.savefig(os.path.join(png_path, ori_title + '.png'), bbox_inches='tight')
-
-
-def show_cam_lstm(cams, probs, images, labels, names, png_path, num_rows=1, num_cols=4, fig_size=(1*8, 2*8)):
-    batch_size = cams.shape[0]
-
-    for batch in range(batch_size):
-        for t in range(images.shape[1]):
-            fig, ax = plt.subplots(num_rows, num_cols, figsize=fig_size)
-            axoff_fun = np.vectorize(lambda ax: ax.axis('off'))
-            axoff_fun(ax)
-
-            ori_title = '_'.join([names[batch].numpy().decode(), '%02d' % t])
-            show_image = np.squeeze(images[batch, t, :, :, :])
-
-            label = labels[batch]
-            ax[0].imshow(show_image, cmap='bone')
-
-            for lbl in range(labels.shape[-1]):
-                prob = '%.2f' % probs[batch, lbl]
-
-                show_cam = np.squeeze(cams[batch, :, :, lbl])
-                cam_title = str(int(label[lbl].numpy())) + ' Pred: ' + str(prob)
-
-                cam_color = 'red' if float(prob) >= 0.5 else 'blue'
-                ax[lbl + 1].imshow(show_image, cmap='bone')
-                ax[lbl + 1].imshow(np.squeeze(show_cam), cmap=plt.cm.seismic, alpha=0.5, interpolation='nearest')
-                ax[lbl + 1].set_title(cam_title, fontsize=7, color=cam_color)
-
-                xlsx_name = os.path.join(plot_path, config.val_name, '_'.join([ori_title, '%d' % lbl]) + '.xlsx')
-                pd.DataFrame(np.squeeze(show_cam)).to_excel(xlsx_name, index=False)
 
             plt.savefig(os.path.join(png_path, ori_title + '.png'), bbox_inches='tight')
 
