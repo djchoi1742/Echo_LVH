@@ -18,12 +18,11 @@ parser = argparse.ArgumentParser()
 main_config = parser.add_argument_group('network setting (must be provided)')
 
 main_config.add_argument('--data_path', type=str, dest='data_path', default='/workspace/Echocard')
-
 main_config.add_argument('--excel_name', type=str, dest='excel_name', default='Echo07')
 main_config.add_argument('--exp_name', type=str, dest='exp_name', default='exp007')
-main_config.add_argument('--train_name', type=str, dest='train_name', default='1,2,3,5')  # ex: 'train'
-main_config.add_argument('--val_name', type=str, dest='val_name', default='4')  # ex: 'val'
-main_config.add_argument('--view', type=int, dest='view', default=2)
+main_config.add_argument('--train_name', type=str, dest='train_name', default='1,2,3,5')
+main_config.add_argument('--val_name', type=str, dest='val_name', default='4')
+main_config.add_argument('--view', type=int, dest='view', default=1)  # 1 ~ 5
 main_config.add_argument('--model_name', type=str, dest='model_name', default='Model10')
 main_config.add_argument('--f_num', type=str, dest='f_num', default='64,96,128,192,256')
 main_config.add_argument('--serial', type=int, dest='serial', default=1)
@@ -36,7 +35,7 @@ main_config.add_argument('--max_keep', type=int, dest='max_keep', default=3)  # 
 main_config.add_argument('--num_weight', type=int, dest='num_weight', default=1)  # only use validation
 main_config.add_argument('--train', type=lambda x: x.title() in str(True), dest='train', default=False)
 main_config.add_argument('--learning_rate', type=float, dest='learning_rate', default=0.00005)
-main_config.add_argument('--decay_steps', type=int, dest='decay_steps', default=400)  # prev: 200
+main_config.add_argument('--decay_steps', type=int, dest='decay_steps', default=400)
 main_config.add_argument('--decay_rate', type=int, dest='decay_rate', default=0.94)
 main_config.add_argument('--batch_size', type=int, dest='batch_size', default=8)
 main_config.add_argument('--epoch', type=int, dest='epoch', default=50)
@@ -57,7 +56,6 @@ gpu = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpu[0], True)  # dynamic memory allocation
 
 serial_str = '%03d' % config.serial
-
 log_path = os.path.join(config.data_path, config.exp_name, config.model_name, 'logs-%s' % serial_str)
 result_path = os.path.join(config.data_path, config.exp_name, config.model_name, 'result-%s' % serial_str)
 plot_path = os.path.join(config.data_path, config.exp_name, config.model_name, 'plot-%s' % serial_str)
@@ -99,7 +97,6 @@ if config.train:
 img_h, img_w, img_z, img_c = config.image_height, config.image_width, config.image_depth, config.image_channel
 
 f_num = [*map(int, re.split(',', config.f_num))]
-
 infer_name = config.model_name
 infer = getattr(model_ref, infer_name)(input_size=[img_z, img_h, img_w, img_c], f_num=f_num, is_training=config.train)
 
