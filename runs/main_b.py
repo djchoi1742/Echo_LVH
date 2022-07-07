@@ -1,9 +1,9 @@
+# Training and validation of CNN-LSTM algorithm
 import os, sys, logging
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import matplotlib.pyplot as plt
-import seaborn as sns
 import sklearn.metrics
 import pandas as pd
 import argparse, json
@@ -55,7 +55,6 @@ logging.disable(logging.WARNING)
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 gpu = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpu[0], True)  # dynamic memory allocation
-sns.set()  # apply seaborn style
 
 serial_str = '%03d' % config.serial
 
