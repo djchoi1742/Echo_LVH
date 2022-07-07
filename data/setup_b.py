@@ -32,8 +32,8 @@ def select_train_groups(x, group_list):
 
 def extract_group(df, data_type):
     group_values = df['GROUP'].tolist()
-    type_groups = [*map(int, re.split(',', data_type))]  # for cross-validation
-    df_subset = df[[*map(lambda x: select_train_groups(x, type_groups), group_values)]]  # for cross-validation
+    type_groups = [*map(int, re.split(',', data_type))]  
+    df_subset = df[[*map(lambda x: select_train_groups(x, type_groups), group_values)]]  
     return df_subset
 
 
@@ -172,7 +172,6 @@ def image3d_preprocess(view, idx, lbl, name, trunc, img_h, img_w, img_c, shift=F
     ph_d_x = abs(seq_ds['0018', '602c'].value)  # Physical Delta X (spacing)
     ph_d_y = seq_ds['0018', '602e'].value  # Physical Delta Y (spacing)
 
-    # if 'SNUH' in view.numpy().decode():
     if not trunc:
         valid_img = ds.pixel_array[idx.numpy(), min_y0:max_y1, min_x0:max_x1, :]
     else:
@@ -181,7 +180,7 @@ def image3d_preprocess(view, idx, lbl, name, trunc, img_h, img_w, img_c, shift=F
     z, y, x = valid_img.shape[0:3]
     cx, cy = int(x / 2), int(y / 2)
 
-    x1, y1 = int(cx - 6 / ph_d_x), int(cy - 6 / ph_d_y)  # exp000, exp001: 10, 7
+    x1, y1 = int(cx - 6 / ph_d_x), int(cy - 6 / ph_d_y)
     x2, y2 = int(cx + 6 / ph_d_x), int(cy + 6 / ph_d_y)
 
     if shift:
@@ -200,9 +199,6 @@ def image3d_preprocess(view, idx, lbl, name, trunc, img_h, img_w, img_c, shift=F
     img = valid_img[:, max(0, y1):min(y, y2), max(0, x1):min(x, x2)]
     img = skimage.transform.resize(img, [z, img_h, img_w, img_c], preserve_range=True)
 
-    # if trans:
-    #     img = np.transpose(img, (1, 2, 0, 3))
-
     if bin_lbl:
         lbl = np.sum(lbl)
 
@@ -212,12 +208,8 @@ def image3d_preprocess(view, idx, lbl, name, trunc, img_h, img_w, img_c, shift=F
 
 
 def image3d_dataset(img, lbl, name, img_z, img_c, augment=False, c_min=1., c_max=2., b_val=.4):
-    # if trans:
-    #     img.set_shape([None, None, img_z, img_c])
-    # else:
     img.set_shape([img_z, None, None, img_c])
 
-    # stack_axis = 2 if trans else 0
     ori_image = tf.unstack(img, axis=0)
 
     def img_preprocess(each_seq):
@@ -306,8 +298,6 @@ def view_image(dataset):
 
                 img_slice = img.numpy()[j, :, :, k, :] if config.trans else img.numpy()[j, k, :, :, :]
                 ax[r_idx, c_idx].imshow(np.squeeze(img_slice), cmap='gray')
-
-                # ax[r_idx, c_idx].imshow(np.squeeze(img.numpy()[j, :, :, k, :]), cmap='gray')
                 ax[r_idx, c_idx].set_title('_'.join([name[j].numpy().decode(), '%02d' % k,
                                                      str(lbl1), str(lbl2), str(lbl3)]), color=name_color, fontsize=10)
 
