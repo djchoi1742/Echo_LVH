@@ -1,3 +1,4 @@
+# Neural network to aggregate the outputs of 5 echocardiograms
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.layers import TimeDistributed, BatchNormalization, Activation, Conv2D, Conv3D, Dense, AvgPool2D
@@ -62,5 +63,5 @@ if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     logging.disable(logging.WARNING)
 
-    infer = Model15(input_size=[256*5], block_num=1, is_training=True)
+    infer = Model15(input_size=[256*5], block_num=2, is_training=True)
     infer.model.summary()
